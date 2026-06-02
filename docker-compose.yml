@@ -1,0 +1,153 @@
+services:
+
+  # ─── Infrastructure ───────────────────────────────────────────
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: cloudblog_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"   # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - cloudblog
+
+  mongo_articles:
+    image: mongo:7
+    container_name: cloudblog_mongo_articles
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_articles_data:/data/db
+    networks:
+      - cloudblog
+
+  mongo_users:
+    image: mongo:7
+    container_name: cloudblog_mongo_users
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo_users_data:/data/db
+    networks:
+      - cloudblog
+
+  # ─── Microservices ────────────────────────────────────────────
+
+  article-service:
+    build:
+      context: ./article-service
+      dockerfile: Dockerfile
+    container_name: cloudblog_articles
+    ports:
+      - "8001:8001"
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      MONGODB_URI: mongodb://mongo_articles:27017
+      MONGODB_DATABASE: articles_db
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mongo_articles:
+        condition: service_started
+    networks:
+      - cloudblog
+    restart: unless-stopped
+
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: cloudblog_users
+    ports:
+      - "8002:8002"
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      MONGODB_URI: mongodb://mongo_users:27017
+      MONGODB_DATABASE: users_db
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mongo_users:
+        condition: service_started
+    networks:
+      - cloudblog
+    restart: unless-stopped
+
+  # ─── RabbitMQ Consumer (User Service) ─────────────────────────
+
+  user-consumer:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: cloudblog_consumer
+    command: ["php", "artisan", "rabbitmq:consume"]
+    environment:
+      APP_ENV: local
+      MONGODB_URI: mongodb://mongo_users:27017
+      MONGODB_DATABASE: users_db
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mongo_users:
+        condition: service_started
+    networks:
+      - cloudblog
+    restart: unless-stopped
+
+  # ─── Gateway + Frontend ───────────────────────────────────────
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cloudblog_gateway
+    ports:
+      - "8080:80"
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8080
+      ARTICLE_SERVICE_URL: http://article-service:8001
+      USER_SERVICE_URL: http://user-service:8002
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /var/www/html/database/database.sqlite
+      SESSION_DRIVER: file
+      CACHE_STORE: file
+    depends_on:
+      - article-service
+      - user-service
+    networks:
+      - cloudblog
+    restart: unless-stopped
+
+# ─── Volumes & Networks ─────────────────────────────────────────
+
+volumes:
+  mongo_articles_data:
+  mongo_users_data:
+
+networks:
+  cloudblog:
+    driver: bridge
