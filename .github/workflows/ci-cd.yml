@@ -30,12 +30,10 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: 22
         script: |
-          echo "Conneted to Lightning AI Server!"
-          # إيلا كان المجلد ما كاينش كايـكولونيه، وإيلا كان كايـدير لي pull
+          echo "Connected to Lightning AI Server!"
           if [ ! -d "cloud-microservices" ]; then
             git clone https://github.com/k-najat/cloud-microservices.git
           fi
           cd cloud-microservices
           git pull origin main
-          # هنا تقدري تزيد أوامر الـ docker-compose من بعد إيلا بغيتي تشغليهم لداخل
           echo "Deployment successful!"
