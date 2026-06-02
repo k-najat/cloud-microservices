@@ -1,0 +1,41 @@
+name: CI/CD Microservices Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. جلب الكود من GitHub
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # 2. تجربة الـ Build للـ user-service
+    - name: Build User Service Image
+      run: docker build -t user-service-image ./user-service
+
+    # 3. تجربة الـ Build للـ article-service
+    - name: Build Article Service Image
+      run: docker build -t article-service-image ./article-service
+
+    # 4. الدخول للسيرفر عبر الـ SSH وتحديث الكود (Deploy)
+    - name: Deploy to Lightning AI via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ssh.lightning.ai
+        username: s_01kt4trwj07kgkx7d9vn81xxhd
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: 22
+        script: |
+          echo "Conneted to Lightning AI Server!"
+          # إيلا كان المجلد ما كاينش كايـكولونيه، وإيلا كان كايـدير لي pull
+          if [ ! -d "cloud-microservices" ]; then
+            git clone https://github.com/k-najat/cloud-microservices.git
+          fi
+          cd cloud-microservices
+          git pull origin main
+          # هنا تقدري تزيد أوامر الـ docker-compose من بعد إيلا بغيتي تشغليهم لداخل
+          echo "Deployment successful!"
