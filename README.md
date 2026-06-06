@@ -1,4 +1,4 @@
-** Laravel Cloud-Native Microservices Architecture**
+_**Laravel Cloud-Native Microservices Architecture**_
 A Cloud-Native Microservices application built with Laravel, MongoDB, and orchestrated using Kubernetes (Kind). The project features automated CI/CD deployment via GitHub Actions.
 
 **Architecture & Core Features**
