@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service-deployment
+  labels:
+    app: user-service
+spec:
+  replicas: 2 # هنا كنقولو لـ K8s يشغل لينا 2 نسخ توماتيك لضمان عدم توقف السيت
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+      - name: user-service
+        image: user-service-image:latest # إسم الـ Image د Docker ديالك
+        imagePullPolicy: Never # حيت الـ Image كاين نيت لداخل ف الماكينة
+        ports:
+        - containerPort: 8000 # المنفذ لي خدام فيه Laravel لداخل
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+spec:
+  selector:
+    app: user-service
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+  type: ClusterIP # كايعطيه IP داخلي باش الـ Services يهضرو بيناتهم

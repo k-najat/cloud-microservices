@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: article-service-deployment
+  labels:
+    app: article-service
+spec:
+  replicas: 2 # حتى هنا 2 نسخ شغالين ف نفس الوقت
+  selector:
+    matchLabels:
+      app: article-service
+  template:
+    metadata:
+      labels:
+        app: article-service
+    spec:
+      containers:
+      - name: article-service
+        image: article-service-image:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8001 # منفذ الـ Article Service
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: article-service
+spec:
+  selector:
+    app: article-service
+  ports:
+    - protocol: TCP
+      port: 8001
+      targetPort: 8001
+  type: ClusterIP
